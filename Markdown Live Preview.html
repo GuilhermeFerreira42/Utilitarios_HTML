@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markdown Suite — Editor + RTF Converter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/128/12191/12191594.png">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root {
+    --bg-primary:#0d1117; --bg-secondary:#161b22; --bg-tertiary:#1c2333;
+    --bg-editor:#0d1117; --bg-preview:#0d1117; --bg-code:#1a2030;
+    --bg-code-inline:#2a1f3d; --bg-toolbar:#161b22; --bg-hover:#1f2a3a;
+    --bg-blockquote:#1a2030; --bg-table-header:#161b22; --bg-table-row-alt:#111820;
+    --bg-selection:rgba(88,166,255,0.25);
+    --text-primary:#e6edf3; --text-secondary:#8b949e; --text-tertiary:#6e7681;
+    --text-code:#f0883e; --text-link:#58a6ff; --text-heading:#f0f6fc;
+    --border-primary:#30363d; --border-secondary:#21262d; --border-accent:#58a6ff;
+    --accent-primary:#58a6ff; --accent-secondary:#3fb950; --accent-warning:#d29922;
+    --accent-danger:#f85149; --accent-purple:#bc8cff;
+    --shadow-sm:0 1px 3px rgba(0,0,0,0.4); --shadow-md:0 4px 12px rgba(0,0,0,0.5);
+    --shadow-lg:0 8px 30px rgba(0,0,0,0.6);
+    --line-number-color:#484f58; --line-number-active:#8b949e;
+    --scrollbar-thumb:#30363d; --scrollbar-track:#161b22; --scrollbar-thumb-hover:#484f58;
+    --hr-color:#30363d; --blockquote-border:#58a6ff; --table-border:#30363d;
+    --preview-font-size:15px;
+  }
+  [data-theme="light"] {
+    --bg-primary:#ffffff; --bg-secondary:#f6f8fa; --bg-tertiary:#eef1f5;
+    --bg-editor:#ffffff; --bg-preview:#ffffff; --bg-code:#f0f3f7;
+    --bg-code-inline:#f3e8ff; --bg-toolbar:#f6f8fa; --bg-hover:#e8ecf0;
+    --bg-blockquote:#f0f4f8; --bg-table-header:#f6f8fa; --bg-table-row-alt:#fafbfc;
+    --bg-selection:rgba(9,105,218,0.15);
+    --text-primary:#1f2328; --text-secondary:#656d76; --text-tertiary:#8b949e;
+    --text-code:#cf222e; --text-link:#0969da; --text-heading:#1a1e24;
+    --border-primary:#d0d7de; --border-secondary:#e1e4e8; --border-accent:#0969da;
+    --accent-primary:#0969da; --accent-secondary:#1a7f37; --accent-warning:#9a6700;
+    --accent-danger:#cf222e; --accent-purple:#8250df;
+    --shadow-sm:0 1px 3px rgba(0,0,0,0.08); --shadow-md:0 4px 12px rgba(0,0,0,0.1);
+    --shadow-lg:0 8px 30px rgba(0,0,0,0.12);
+    --line-number-color:#c9d1d9; --line-number-active:#8b949e;
+    --scrollbar-thumb:#c9d1d9; --scrollbar-track:#f6f8fa; --scrollbar-thumb-hover:#8b949e;
+    --hr-color:#d0d7de; --blockquote-border:#0969da; --table-border:#d0d7de;
+  }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  html{font-size:16px;-webkit-text-size-adjust:100%;scroll-behavior:smooth;}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+    background:var(--bg-primary);color:var(--text-primary);line-height:1.6;
+    height:100vh;overflow:hidden;transition:background-color 0.3s ease,color 0.3s ease;}
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-track{background:var(--scrollbar-track);}
+  ::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:4px;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-thumb-hover);}
+  ::selection{background:var(--bg-selection);}
+
+  .app{display:flex;flex-direction:column;height:100vh;}
+  .toolbar{display:flex;align-items:center;justify-content:space-between;
+    padding:0 20px;height:56px;min-height:56px;background:var(--bg-toolbar);
+    border-bottom:1px solid var(--border-secondary);z-index:100;
+    box-shadow:var(--shadow-sm);transition:background-color 0.3s ease,border-color 0.3s ease;}
+  .toolbar__brand{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  .toolbar__logo{width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--accent-primary),var(--accent-purple));
+    border-radius:8px;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;}
+  .toolbar__title{font-size:15px;font-weight:600;color:var(--text-primary);letter-spacing:-0.01em;}
+  .toolbar__subtitle{font-size:11px;color:var(--text-tertiary);font-weight:400;margin-left:8px;}
+
+  /* Mode Switcher (Tabs) */
+  .mode-switcher{display:flex;gap:4px;background:var(--bg-primary);
+    border:1px solid var(--border-primary);border-radius:10px;padding:3px;}
+  .mode-btn{padding:6px 14px;border:none;background:transparent;color:var(--text-secondary);
+    font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:7px;
+    transition:all 0.2s ease;display:inline-flex;align-items:center;gap:6px;}
+  .mode-btn:hover{color:var(--text-primary);}
+  .mode-btn.active{background:var(--accent-primary);color:#fff;box-shadow:var(--shadow-sm);}
+  .mode-btn svg{width:14px;height:14px;fill:currentColor;}
+
+  .toolbar__actions{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    padding:7px 14px;border:1px solid var(--border-primary);border-radius:8px;
+    background:var(--bg-secondary);color:var(--text-secondary);font-family:inherit;
+    font-size:12px;font-weight:500;cursor:pointer;transition:all 0.2s ease;
+    white-space:nowrap;user-select:none;}
+  .btn:hover{background:var(--bg-hover);color:var(--text-primary);border-color:var(--border-accent);}
+  .btn:active{transform:scale(0.97);}
+  .btn:focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px;}
+  .btn--icon{padding:8px;width:36px;height:36px;}
+  .btn--primary{background:var(--accent-primary);border-color:var(--accent-primary);color:#fff;}
+  .btn--primary:hover{opacity:0.9;background:var(--accent-primary);color:#fff;}
+  .btn--danger:hover{border-color:var(--accent-danger);color:var(--accent-danger);}
+  .btn--pdf{background:linear-gradient(135deg,#e74c3c,#c0392b);border-color:#c0392b;color:#fff;}
+  .btn--pdf:hover{opacity:0.9;color:#fff;}
+  .btn svg{width:16px;height:16px;fill:currentColor;flex-shrink:0;}
+  .toolbar__sep{width:1px;height:24px;background:var(--border-primary);margin:0 4px;flex-shrink:0;}
+  .toolbar__stats{display:flex;align-items:center;gap:12px;font-size:11px;
+    color:var(--text-tertiary);margin-right:4px;}
+
+  /* Mode Containers */
+  .mode-container{flex:1;display:none;overflow:hidden;position:relative;}
+  .mode-container.active{display:flex;}
+
+  /* MODE 1 - MARKDOWN EDITOR */
+  .pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;
+    transition:background-color 0.3s ease;}
+  .pane__header{display:flex;align-items:center;gap:8px;padding:0 20px;
+    font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;
+    color:var(--text-tertiary);background:var(--bg-secondary);
+    border-bottom:1px solid var(--border-secondary);min-height:38px;height:38px;}
+  .pane__header-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+  .pane__header-dot--green{background:var(--accent-secondary);}
+  .pane__header-dot--blue{background:var(--accent-primary);}
+  .pane__header-dot--purple{background:var(--accent-purple);}
+  .pane__header-label{flex:1;}
+
+  .zoom-controls{display:flex;align-items:center;gap:6px;margin-left:auto;}
+  .zoom-btn{display:inline-flex;align-items:center;justify-content:center;
+    width:24px;height:24px;border:1px solid var(--border-primary);border-radius:5px;
+    background:var(--bg-primary);color:var(--text-secondary);
+    font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;
+    cursor:pointer;transition:all 0.15s ease;line-height:1;padding:0;}
+  .zoom-btn:hover{background:var(--bg-hover);color:var(--text-primary);border-color:var(--border-accent);}
+  .zoom-slider{-webkit-appearance:none;appearance:none;width:80px;height:4px;
+    background:var(--border-primary);border-radius:2px;outline:none;cursor:pointer;}
+  .zoom-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;
+    border-radius:50%;background:var(--accent-primary);cursor:pointer;
+    border:2px solid var(--bg-primary);box-shadow:0 0 0 1px var(--accent-primary);}
+  .zoom-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
+    background:var(--accent-primary);cursor:pointer;border:2px solid var(--bg-primary);}
+  .zoom-value{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;
+    color:var(--text-tertiary);min-width:36px;text-align:center;background:var(--bg-primary);
+    border:1px solid var(--border-secondary);border-radius:4px;padding:2px 4px;}
+
+  .resize-handle{width:5px;cursor:col-resize;background:var(--border-secondary);
+    position:relative;z-index:10;transition:background-color 0.2s ease;flex-shrink:0;}
+  .resize-handle:hover,.resize-handle.active{background:var(--accent-primary);}
+
+  .editor-wrapper{flex:1;display:flex;overflow:hidden;background:var(--bg-editor);position:relative;}
+  .line-numbers{width:52px;min-width:52px;padding:20px 8px 20px 0;text-align:right;
+    font-family:'JetBrains Mono','Fira Code','Consolas',monospace;font-size:13px;
+    line-height:1.7;color:var(--line-number-color);background:var(--bg-editor);
+    user-select:none;overflow:hidden;border-right:1px solid var(--border-secondary);}
+  .line-numbers .line-num{display:block;height:calc(13px * 1.7);}
+  .line-numbers .line-num.active{color:var(--line-number-active);}
+  #editor{flex:1;width:100%;padding:20px 24px;border:none;outline:none;resize:none;
+    background:var(--bg-editor);color:var(--text-primary);
+    font-family:'JetBrains Mono','Fira Code','Consolas',monospace;font-size:13px;
+    line-height:1.7;tab-size:2;-moz-tab-size:2;overflow-y:auto;white-space:pre;}
+  #editor::placeholder{color:var(--text-tertiary);}
+
+  .preview-wrapper{flex:1;overflow-y:auto;padding:28px 36px;background:var(--bg-preview);}
+  .preview-content{max-width:800px;color:var(--text-primary);line-height:1.75;
+    font-size:var(--preview-font-size);word-wrap:break-word;overflow-wrap:break-word;
+    transition:font-size 0.15s ease;}
+  .preview-content h1,.preview-content h2,.preview-content h3,
+  .preview-content h4,.preview-content h5,.preview-content h6{
+    color:var(--text-heading);font-weight:700;margin-top:1.8em;margin-bottom:0.6em;
+    line-height:1.3;letter-spacing:-0.02em;}
+  .preview-content h1{font-size:2em;padding-bottom:0.3em;border-bottom:1px solid var(--hr-color);margin-top:0;}
+  .preview-content h2{font-size:1.5em;padding-bottom:0.25em;border-bottom:1px solid var(--hr-color);}
+  .preview-content h3{font-size:1.25em;}
+  .preview-content h4{font-size:1.1em;}
+  .preview-content h5{font-size:1em;color:var(--text-secondary);}
+  .preview-content h6{font-size:0.9em;color:var(--text-tertiary);}
+  .preview-content p{margin-bottom:1.2em;}
+  .preview-content a{color:var(--text-link);text-decoration:none;border-bottom:1px solid transparent;}
+  .preview-content a:hover{border-bottom-color:var(--text-link);}
+  .preview-content strong{font-weight:700;color:var(--text-heading);}
+  .preview-content em{font-style:italic;}
+  .preview-content del{text-decoration:line-through;color:var(--text-tertiary);}
+  .preview-content code:not(pre code){font-family:'JetBrains Mono','Fira Code','Consolas',monospace;
+    font-size:0.88em;background:var(--bg-code-inline);color:var(--text-code);
+    padding:0.15em 0.45em;border-radius:5px;white-space:nowrap;}
+  .preview-content pre{background:var(--bg-code);border:1px solid var(--border-secondary);
+    border-radius:10px;padding:18px 22px;margin:1.4em 0;overflow-x:auto;box-shadow:var(--shadow-sm);}
+  .preview-content pre code{font-family:'JetBrains Mono','Fira Code','Consolas',monospace;
+    font-size:13px;line-height:1.6;color:var(--text-primary);background:none;
+    padding:0;border-radius:0;white-space:pre;display:block;}
+  .preview-content blockquote{margin:1.4em 0;padding:12px 20px;
+    border-left:4px solid var(--blockquote-border);background:var(--bg-blockquote);
+    border-radius:0 8px 8px 0;color:var(--text-secondary);}
+  .preview-content blockquote p:last-child{margin-bottom:0;}
+  .preview-content ul,.preview-content ol{margin:1em 0;padding-left:2em;}
+  .preview-content li{margin-bottom:0.4em;}
+  .preview-content hr{border:none;height:2px;background:var(--hr-color);margin:2em 0;border-radius:1px;}
+  .preview-content table{width:100%;border-collapse:collapse;margin:1.4em 0;
+    font-size:0.93em;border-radius:8px;border:1px solid var(--table-border);}
+  .preview-content thead{background:var(--bg-table-header);}
+  .preview-content th{font-weight:600;text-align:left;padding:10px 16px;
+    border-bottom:2px solid var(--table-border);color:var(--text-heading);}
+  .preview-content td{padding:10px 16px;border-bottom:1px solid var(--table-border);}
+  .preview-content tbody tr:nth-child(even){background:var(--bg-table-row-alt);}
+  .preview-content img{max-width:100%;height:auto;border-radius:10px;
+    margin:1.2em 0;box-shadow:var(--shadow-md);}
+  .preview-empty{display:flex;flex-direction:column;align-items:center;
+    justify-content:center;height:100%;color:var(--text-tertiary);text-align:center;gap:16px;}
+  .preview-empty svg{width:64px;height:64px;opacity:0.3;fill:currentColor;}
+
+  /* MODE 2 - RTF CONVERTER */
+  .rtf-mode{flex:1;display:none;flex-direction:column;overflow:hidden;padding:20px;gap:16px;}
+  .rtf-mode.active{display:flex;}
+  .rtf-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:16px;overflow:hidden;}
+  .rtf-section{display:flex;flex-direction:column;gap:8px;overflow:hidden;}
+  .rtf-section__header{display:flex;align-items:center;justify-content:space-between;
+    font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;
+    letter-spacing:0.05em;}
+  #input-area{flex:1;background:var(--bg-secondary);border:2px solid var(--border-primary);
+    border-radius:12px;padding:20px;overflow-y:auto;color:var(--text-primary);
+    font-size:14px;line-height:1.6;outline:none;transition:border-color 0.2s ease;}
+  #input-area:focus{border-color:var(--accent-primary);}
+  #input-area:empty:before{content:attr(data-placeholder);color:var(--text-tertiary);}
+  #output-area{flex:1;background:var(--bg-code);color:var(--text-primary);
+    font-family:'JetBrains Mono','Fira Code','Consolas',monospace;font-size:13px;
+    padding:20px;border-radius:12px;border:1px solid var(--border-secondary);
+    resize:none;outline:none;line-height:1.6;}
+  #output-area.processing{opacity:0.5;}
+  .rtf-footer{display:flex;gap:20px;font-size:11px;color:var(--text-tertiary);
+    padding:10px 14px;background:var(--bg-secondary);
+    border:1px solid var(--border-secondary);border-radius:8px;}
+
+  /* Mobile Tabs (mode 1) */
+  .mobile-tabs{display:none;background:var(--bg-toolbar);border-bottom:1px solid var(--border-secondary);}
+  .mobile-tab{flex:1;padding:12px;text-align:center;font-size:13px;font-weight:600;
+    color:var(--text-tertiary);background:transparent;border:none;
+    border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;}
+  .mobile-tab.active{color:var(--accent-primary);border-bottom-color:var(--accent-primary);}
+
+  /* Overlays */
+  .pdf-overlay{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.7);
+    backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;
+    opacity:0;pointer-events:none;transition:opacity 0.3s ease;}
+  .pdf-overlay.active{opacity:1;pointer-events:auto;}
+  .pdf-overlay__inner{display:flex;flex-direction:column;align-items:center;gap:18px;
+    padding:40px 50px;background:var(--bg-secondary);border:1px solid var(--border-primary);
+    border-radius:16px;box-shadow:var(--shadow-lg);}
+  .pdf-spinner{width:44px;height:44px;border:4px solid var(--border-primary);
+    border-top-color:var(--accent-primary);border-radius:50%;animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .pdf-overlay__text{font-size:14px;font-weight:500;color:var(--text-secondary);}
+
+  .toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;
+    background:var(--accent-secondary);color:#fff;font-size:13px;font-weight:500;
+    border-radius:10px;box-shadow:var(--shadow-lg);transform:translateY(100px);
+    opacity:0;transition:all 0.35s cubic-bezier(0.16,1,0.3,1);z-index:9999;pointer-events:none;}
+  .toast.show{transform:translateY(0);opacity:1;}
+
+  @media (max-width:768px){
+    .toolbar{padding:0 12px;height:50px;min-height:50px;flex-wrap:wrap;}
+    .toolbar__subtitle,.toolbar__stats,.toolbar__sep{display:none;}
+    .btn{padding:6px 10px;font-size:11px;}
+    .btn__label{display:none;}
+    .btn--icon{width:32px;height:32px;padding:6px;}
+    .mobile-tabs{display:flex;}
+    .mode-container.active{flex-direction:column;}
+    .resize-handle{display:none;}
+    .pane{display:none;}
+    .pane.mobile-active{display:flex;flex:1;}
+    .rtf-grid{grid-template-columns:1fr;}
+    .preview-wrapper{padding:20px 16px;}
+    .line-numbers{width:40px;min-width:40px;padding:16px 6px 16px 0;font-size:11px;}
+    #editor{padding:16px;}
+    .mode-btn{padding:5px 10px;font-size:11px;}
+    .mode-btn span{display:none;}
+  }
+
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+  .preview-content > *{animation:fadeIn 0.2s ease;}
+
+  @media print{
+    .toolbar,.mobile-tabs,.resize-handle,.pane:first-child,
+    .line-numbers,.zoom-controls,.rtf-mode{display:none !important;}
+    .pane:last-child{display:block !important;}
+    .preview-wrapper{padding:0;}
+    body{background:#fff;color:#000;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="toolbar">
+    <div class="toolbar__brand">
+      <div class="toolbar__logo">M↓</div>
+      <span class="toolbar__title">Markdown Suite</span>
+      <span class="toolbar__subtitle">Editor + Converter</span>
+    </div>
+
+    <div class="mode-switcher" role="tablist">
+      <button class="mode-btn active" data-mode="editor" role="tab">
+        <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        <span>Editor</span>
+      </button>
+      <button class="mode-btn" data-mode="converter" role="tab">
+        <svg viewBox="0 0 24 24"><path d="M7 7h10v2H7zm0 4h7v2H7zm0 4h10v2H7z"/><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V5h14v14z"/></svg>
+        <span>RTF→MD</span>
+      </button>
+    </div>
+
+    <div class="toolbar__actions">
+      <div class="toolbar__stats" id="stats">
+        <span id="wordCount">0 palavras</span>
+        <span id="charCount">0 caracteres</span>
+      </div>
+      <div class="toolbar__sep"></div>
+      <button class="btn" id="btnCopy" title="Copiar conteúdo">
+        <svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
+        <span class="btn__label">Copiar</span>
+      </button>
+      <button class="btn" id="btnDownload" title="Baixar .md">
+        <svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
+        <span class="btn__label">.md</span>
+      </button>
+      <button class="btn btn--pdf" id="btnPdf" title="Exportar PDF">
+        <svg viewBox="0 0 24 24"><path d="M20 2H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM4 6H2v14a2 2 0 0 0 2 2h14v-2H4V6z"/></svg>
+        <span class="btn__label">PDF</span>
+      </button>
+      <div class="toolbar__sep"></div>
+      <button class="btn btn--danger" id="btnClear" title="Limpar">
+        <svg viewBox="0 0 24 24"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+      </button>
+      <button class="btn btn--icon" id="btnTheme" title="Alternar tema">
+        <svg id="iconMoon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+        <svg id="iconSun" viewBox="0 0 24 24" style="display:none;"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="mobile-tabs" id="mobileTabs">
+    <button class="mobile-tab active" data-tab="editor">📝 Editor</button>
+    <button class="mobile-tab" data-tab="preview">👁 Preview</button>
+  </div>
+
+  <!-- MODE 1: MARKDOWN EDITOR -->
+  <main class="mode-container active" id="modeEditor">
+    <div class="pane mobile-active" id="editorPane">
+      <div class="pane__header">
+        <span class="pane__header-dot pane__header-dot--green"></span>
+        <span class="pane__header-label">MARKDOWN</span>
+      </div>
+      <div class="editor-wrapper">
+        <div class="line-numbers" id="lineNumbers"></div>
+        <textarea id="editor" placeholder="Comece a escrever seu Markdown aqui..." spellcheck="false" autocomplete="off"></textarea>
+      </div>
+    </div>
+    <div class="resize-handle" id="resizeHandle"></div>
+    <div class="pane" id="previewPane">
+      <div class="pane__header">
+        <span class="pane__header-dot pane__header-dot--blue"></span>
+        <span class="pane__header-label">PREVIEW</span>
+        <div class="zoom-controls">
+          <button class="zoom-btn" id="zoomOut" title="Diminuir">−</button>
+          <input type="range" class="zoom-slider" id="zoomSlider" min="8" max="48" step="1" value="15">
+          <button class="zoom-btn" id="zoomIn" title="Aumentar">+</button>
+          <span class="zoom-value" id="zoomValue">15px</span>
+          <button class="zoom-btn" id="zoomReset" title="Resetar" style="font-size:10px;">↺</button>
+        </div>
+      </div>
+      <div class="preview-wrapper" id="previewWrapper">
+        <div class="preview-content" id="preview">
+          <div class="preview-empty" id="previewEmpty">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+            <p>Comece a digitar para ver a pré-visualização</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODE 2: RTF CONVERTER -->
+  <section class="rtf-mode" id="modeConverter">
+    <div class="rtf-grid">
+      <div class="rtf-section">
+        <div class="rtf-section__header">
+          <span><span class="pane__header-dot pane__header-dot--purple" style="display:inline-block;"></span> 1. Cole Conteúdo Rico</span>
+        </div>
+        <div id="input-area" contenteditable="true" role="textbox" data-placeholder="Cole aqui textos do Word, navegador ou outros editores..."></div>
+      </div>
+      <div class="rtf-section">
+        <div class="rtf-section__header">
+          <span><span class="pane__header-dot pane__header-dot--blue" style="display:inline-block;"></span> 2. Markdown Sanitizado</span>
+        </div>
+        <textarea id="output-area" readonly placeholder="O código Markdown aparecerá aqui..."></textarea>
+      </div>
+    </div>
+    <div class="rtf-footer">
+      <span id="rtfCharCount">Caracteres: 0</span>
+      <span id="rtfWordCount">Palavras: 0</span>
+      <span style="margin-left:auto;font-style:italic;">Use o botão "Copiar" da toolbar para copiar o Markdown</span>
+    </div>
+  </section>
+</div>
+
+<div class="pdf-overlay" id="pdfOverlay">
+  <div class="pdf-overlay__inner">
+    <div class="pdf-spinner"></div>
+    <span class="pdf-overlay__text">Gerando PDF...</span>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // === ELEMENTS ===
+  const editor = document.getElementById('editor');
+  const preview = document.getElementById('preview');
+  const previewEmpty = document.getElementById('previewEmpty');
+  const previewWrapper = document.getElementById('previewWrapper');
+  const lineNumbers = document.getElementById('lineNumbers');
+  const btnTheme = document.getElementById('btnTheme');
+  const btnCopy = document.getElementById('btnCopy');
+  const btnDownload = document.getElementById('btnDownload');
+  const btnPdf = document.getElementById('btnPdf');
+  const btnClear = document.getElementById('btnClear');
+  const iconMoon = document.getElementById('iconMoon');
+  const iconSun = document.getElementById('iconSun');
+  const wordCountEl = document.getElementById('wordCount');
+  const charCountEl = document.getElementById('charCount');
+  const resizeHandle = document.getElementById('resizeHandle');
+  const editorPane = document.getElementById('editorPane');
+  const previewPane = document.getElementById('previewPane');
+  const toast = document.getElementById('toast');
+  const mobileTabs = document.querySelectorAll('.mobile-tab');
+  const pdfOverlay = document.getElementById('pdfOverlay');
+  const zoomSlider = document.getElementById('zoomSlider');
+  const zoomValue = document.getElementById('zoomValue');
+  const zoomIn = document.getElementById('zoomIn');
+  const zoomOut = document.getElementById('zoomOut');
+  const zoomReset = document.getElementById('zoomReset');
+
+  const modeButtons = document.querySelectorAll('.mode-btn');
+  const modeEditor = document.getElementById('modeEditor');
+  const modeConverter = document.getElementById('modeConverter');
+  const mobileTabsBar = document.getElementById('mobileTabs');
+
+  const inputArea = document.getElementById('input-area');
+  const outputArea = document.getElementById('output-area');
+  const rtfCharCount = document.getElementById('rtfCharCount');
+  const rtfWordCount = document.getElementById('rtfWordCount');
+
+  // === CONSTANTS ===
+  const DEBOUNCE_DELAY = 50;
+  const DEFAULT_FONT_SIZE = 15;
+  const MIN_FONT_SIZE = 8;
+  const MAX_FONT_SIZE = 48;
+
+  let currentTheme = 'dark';
+  let currentMode = 'editor';
+  let debounceTimer = null;
+  let currentFontSize = DEFAULT_FONT_SIZE;
+
+  marked.setOptions({ breaks: true, gfm: true, headerIds: false, mangle: false });
+
+  const defaultContent = `# 🎯 Bem-vindo ao Markdown Suite
+
+Um conjunto de ferramentas com **editor Markdown** e **conversor RTF→Markdown**.
+
+## ✨ Modos disponíveis
+
+- **Editor**: Edição de Markdown com preview em tempo real
+- **RTF→MD**: Converte texto rico (Word, navegadores) em Markdown puro
+
+---
+
+## 📝 Funcionalidades
+
+- Títulos H1 até H6
+- **Negrito**, *Itálico* e ~~Riscado~~
+- Listas, tabelas e citações
+- Blocos de código
+
+\`\`\`javascript
+function ola() {
+  console.log("Olá, Mundo!");
+}
+\`\`\`
+
+> 💡 **Dica:** Alterne entre os modos no topo. **Ctrl+S** baixa .md, **Ctrl+P** exporta PDF.
+`;
+
+  // === THEME ===
+  function initTheme(){
+    const saved = localStorage.getItem('md-suite-theme');
+    currentTheme = saved || 'dark';
+    applyTheme();
+  }
+  function applyTheme(){
+    if(currentTheme === 'dark') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme','light');
+    iconMoon.style.display = currentTheme === 'dark' ? 'block' : 'none';
+    iconSun.style.display = currentTheme === 'dark' ? 'none' : 'block';
+    localStorage.setItem('md-suite-theme', currentTheme);
+  }
+  function toggleTheme(){
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    applyTheme();
+    showToast(currentTheme === 'dark' ? '🌙 Tema Escuro' : '☀️ Tema Claro');
+  }
+
+  // === DEBOUNCE ===
+  function debounce(fn, delay){
+    return function(...args){
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => fn.apply(this, args), delay);
+    };
+  }
+
+  // === MODE SWITCHING ===
+  function switchMode(mode){
+    currentMode = mode;
+    modeButtons.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    modeEditor.classList.toggle('active', mode === 'editor');
+    modeConverter.classList.toggle('active', mode === 'converter');
+    mobileTabsBar.style.display = mode === 'editor' ? '' : 'none';
+    if(mode === 'editor') updateStats();
+    else updateRtfStats();
+    localStorage.setItem('md-suite-mode', mode);
+  }
+
+  // === RENDER PREVIEW ===
+  function renderPreview(){
+    const md = editor.value;
+    if(md.trim() === ''){
+      preview.innerHTML = '';
+      preview.appendChild(previewEmpty);
+      previewEmpty.style.display = 'flex';
+    } else {
+      previewEmpty.style.display = 'none';
+      preview.innerHTML = marked.parse(md);
+    }
+    updateStats();
+    updateLineNumbers();
+  }
+  const debouncedRender = debounce(renderPreview, DEBOUNCE_DELAY);
+
+  function updateLineNumbers(){
+    const lines = editor.value.split('\n');
+    const count = lines.length;
+    const cursorPos = editor.selectionStart;
+    const textBefore = editor.value.substring(0, cursorPos);
+    const currentLine = textBefore.split('\n').length;
+    let html = '';
+    for(let i = 1; i <= count; i++){
+      html += `<span class="line-num${i === currentLine ? ' active' : ''}">${i}</span>`;
+    }
+    lineNumbers.innerHTML = html;
+  }
+
+  function updateStats(){
+    const text = editor.value;
+    const chars = text.length;
+    const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+    wordCountEl.textContent = `${words} palavra${words !== 1 ? 's' : ''}`;
+    charCountEl.textContent = `${chars} caractere${chars !== 1 ? 's' : ''}`;
+  }
+
+  function syncLineNumbersScroll(){ lineNumbers.scrollTop = editor.scrollTop; }
+
+  // === TOAST ===
+  let toastTimer = null;
+  function showToast(msg){
+    clearTimeout(toastTimer);
+    toast.textContent = msg;
+    toast.classList.add('show');
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+
+  // === COPY (mode-aware) ===
+  async function copyContent(){
+    const text = currentMode === 'editor' ? editor.value : outputArea.value;
+    if(!text){ showToast('⚠️ Nada para copiar'); return; }
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('✅ Copiado!');
+    } catch {
+      const ta = currentMode === 'editor' ? editor : outputArea;
+      ta.select();
+      document.execCommand('copy');
+      showToast('✅ Copiado!');
+    }
+  }
+
+  // === DOWNLOAD (mode-aware) ===
+  function downloadMarkdown(){
+    const content = currentMode === 'editor' ? editor.value : outputArea.value;
+    if(!content){ showToast('⚠️ Nada para baixar'); return; }
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'documento.md';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('💾 .md baixado!');
+  }
+
+  // === EXPORT PDF ===
+  function waitForImages(root){
+    const imgs = Array.from(root.querySelectorAll('img'));
+    if(imgs.length === 0) return Promise.resolve();
+    return Promise.all(imgs.map(img => new Promise(resolve => {
+      if(!img.crossOrigin) img.crossOrigin = 'anonymous';
+      if(img.complete && img.naturalWidth > 0){ resolve(); return; }
+      const cleanup = () => { img.removeEventListener('load', onLoad); img.removeEventListener('error', onError); };
+      const onLoad = () => { cleanup(); resolve(); };
+      const onError = () => {
+        cleanup();
+        img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="120"><rect width="100%" height="100%" fill="#f0f3f7" stroke="#d0d7de"/><text x="50%" y="50%" font-family="sans-serif" font-size="14" fill="#8b949e" text-anchor="middle" dominant-baseline="middle">[Imagem indisponível]</text></svg>');
+        img.onload = () => resolve(); img.onerror = () => resolve();
+      };
+      img.addEventListener('load', onLoad);
+      img.addEventListener('error', onError);
+      setTimeout(() => { cleanup(); resolve(); }, 4000);
+    })));
+  }
+
+  async function exportPdf(){
+    let sourceContent;
+    if(currentMode === 'editor'){
+      if(editor.value.trim() === ''){ showToast('⚠️ Editor vazio!'); return; }
+      sourceContent = preview.innerHTML;
+    } else {
+      if(!outputArea.value.trim()){ showToast('⚠️ Sem conteúdo!'); return; }
+      sourceContent = marked.parse(outputArea.value);
+    }
+    if(typeof html2pdf === 'undefined'){ showToast('❌ html2pdf não carregou'); return; }
+
+    pdfOverlay.classList.add('active');
+    const container = document.createElement('div');
+    container.innerHTML = sourceContent;
+    container.style.cssText = `font-family:'Inter',sans-serif;color:#1f2328;background:#fff;line-height:1.75;font-size:${Math.min(Math.max(currentFontSize,11),18)}px;padding:0;margin:0;width:750px;box-sizing:border-box;word-wrap:break-word;`;
+
+    const styleMap = {
+      'H1':'font-size:2em;font-weight:700;margin:0 0 0.4em 0;padding-bottom:0.3em;border-bottom:1px solid #d0d7de;color:#1a1e24;',
+      'H2':'font-size:1.5em;font-weight:700;margin:1.2em 0 0.4em 0;padding-bottom:0.25em;border-bottom:1px solid #d0d7de;color:#1a1e24;',
+      'H3':'font-size:1.25em;font-weight:700;margin:1.2em 0 0.4em 0;color:#1a1e24;',
+      'H4':'font-size:1.1em;font-weight:700;margin:1.2em 0 0.4em 0;color:#1a1e24;',
+      'P':'margin:0 0 0.9em 0;color:#1f2328;',
+      'A':'color:#0969da;text-decoration:none;',
+      'STRONG':'font-weight:700;color:#1a1e24;',
+      'EM':'font-style:italic;',
+      'BLOCKQUOTE':'margin:1em 0;padding:10px 18px;border-left:4px solid #0969da;background:#f0f4f8;border-radius:0 6px 6px 0;color:#656d76;',
+      'PRE':'background:#f0f3f7;border:1px solid #e1e4e8;border-radius:8px;padding:14px 18px;margin:1em 0;overflow:hidden;white-space:pre-wrap;',
+      'TABLE':'width:100%;border-collapse:collapse;margin:1em 0;font-size:0.93em;border:1px solid #d0d7de;',
+      'TH':'font-weight:600;text-align:left;padding:8px 14px;border-bottom:2px solid #d0d7de;background:#f6f8fa;',
+      'TD':'padding:8px 14px;border-bottom:1px solid #d0d7de;',
+      'HR':'border:none;height:2px;background:#d0d7de;margin:1.5em 0;',
+      'UL':'margin:0.8em 0;padding-left:2em;list-style-type:disc;',
+      'OL':'margin:0.8em 0;padding-left:2em;list-style-type:decimal;',
+      'LI':'margin-bottom:0.3em;',
+      'IMG':'max-width:100%;height:auto;border-radius:8px;margin:1em 0;display:block;',
+      'DEL':'text-decoration:line-through;color:#8b949e;'
+    };
+    function applyStyles(el){
+      if(el.nodeType !== 1) return;
+      const tag = el.tagName;
+      if(styleMap[tag]) el.style.cssText = styleMap[tag] + (el.style.cssText || '');
+      if(tag === 'CODE' && el.parentElement && el.parentElement.tagName !== 'PRE'){
+        el.style.cssText = 'font-family:"JetBrains Mono",monospace;font-size:0.88em;background:#f3e8ff;color:#cf222e;padding:0.15em 0.4em;border-radius:4px;';
+      }
+      if(tag === 'CODE' && el.parentElement && el.parentElement.tagName === 'PRE'){
+        el.style.cssText = 'font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.6;color:#1f2328;background:none;padding:0;white-space:pre-wrap;display:block;';
+      }
+      for(const c of el.children) applyStyles(c);
+    }
+    applyStyles(container);
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:fixed;top:0;left:0;width:750px;background:#fff;padding:20px;z-index:-1;opacity:0;pointer-events:none;';
+    wrapper.appendChild(container);
+    document.body.appendChild(wrapper);
+
+    try {
+      if(document.fonts && document.fonts.ready) await document.fonts.ready;
+      await waitForImages(container);
+      await new Promise(r => setTimeout(r, 150));
+      await html2pdf().from(container).set({
+        margin:[12,14,12,14], filename:'documento.pdf',
+        image:{type:'jpeg',quality:0.95},
+        html2canvas:{scale:2,useCORS:true,allowTaint:true,backgroundColor:'#fff',windowWidth:790},
+        jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:true},
+        pagebreak:{mode:['avoid-all','css','legacy']}
+      }).save();
+      showToast('📄 PDF exportado!');
+    } catch(err){
+      console.error(err);
+      showToast('❌ Erro ao exportar');
+    } finally {
+      if(wrapper.parentNode) document.body.removeChild(wrapper);
+      pdfOverlay.classList.remove('active');
+    }
+  }
+
+  // === ZOOM ===
+  function initZoom(){
+    const saved = localStorage.getItem('md-suite-zoom');
+    if(saved !== null) currentFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, parseInt(saved,10)));
+    applyZoom();
+  }
+  function applyZoom(){
+    document.documentElement.style.setProperty('--preview-font-size', currentFontSize + 'px');
+    zoomSlider.value = currentFontSize;
+    zoomValue.textContent = currentFontSize + 'px';
+    localStorage.setItem('md-suite-zoom', currentFontSize);
+  }
+  function setZoom(s){ currentFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, s)); applyZoom(); }
+  function stepZoom(d){ setZoom(currentFontSize + d); }
+  function resetZoom(){ setZoom(DEFAULT_FONT_SIZE); showToast('🔍 Zoom: 15px'); }
+
+  // === CLEAR (mode-aware) ===
+  function clearContent(){
+    if(currentMode === 'editor'){
+      if(editor.value.trim() === '') return;
+      editor.value = '';
+      saveToStorage();
+      debouncedRender();
+      editor.focus();
+    } else {
+      inputArea.innerHTML = '';
+      outputArea.value = '';
+      updateRtfStats();
+      inputArea.focus();
+    }
+    showToast('🗑️ Limpo');
+  }
+
+  // === STORAGE ===
+  function saveToStorage(){ localStorage.setItem('md-suite-content', editor.value); }
+  function loadFromStorage(){
+    const saved = localStorage.getItem('md-suite-content');
+    editor.value = saved !== null ? saved : defaultContent;
+  }
+
+  // === RESIZE ===
+  let isResizing = false;
+  function initResize(){
+    resizeHandle.addEventListener('mousedown', startResize);
+    resizeHandle.addEventListener('touchstart', startResize, {passive:false});
+    document.addEventListener('mousemove', doResize);
+    document.addEventListener('touchmove', doResize, {passive:false});
+    document.addEventListener('mouseup', stopResize);
+    document.addEventListener('touchend', stopResize);
+  }
+  function startResize(e){
+    e.preventDefault();
+    isResizing = true;
+    resizeHandle.classList.add('active');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
+  function doResize(e){
+    if(!isResizing) return;
+    e.preventDefault();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cw = editorPane.parentElement.offsetWidth;
+    const hw = resizeHandle.offsetWidth;
+    const newE = cx, newP = cw - newE - hw;
+    if(newE > 200 && newP > 200){
+      editorPane.style.flex = 'none'; editorPane.style.width = newE + 'px';
+      previewPane.style.flex = 'none'; previewPane.style.width = newP + 'px';
+    }
+  }
+  function stopResize(){
+    if(!isResizing) return;
+    isResizing = false;
+    resizeHandle.classList.remove('active');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+
+  // === MOBILE TABS ===
+  function initMobileTabs(){
+    mobileTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.tab;
+        mobileTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        editorPane.classList.toggle('mobile-active', target === 'editor');
+        previewPane.classList.toggle('mobile-active', target === 'preview');
+      });
+    });
+  }
+
+  // === TAB KEY ===
+  function handleTabKey(e){
+    if(e.key === 'Tab'){
+      e.preventDefault();
+      const s = editor.selectionStart, en = editor.selectionEnd;
+      editor.value = editor.value.substring(0,s) + '  ' + editor.value.substring(en);
+      editor.selectionStart = editor.selectionEnd = s + 2;
+      debouncedRender(); saveToStorage();
+    }
+  }
+
+  // === SHORTCUTS ===
+  function handleShortcuts(e){
+    const ctrl = e.ctrlKey || e.metaKey;
+    if(ctrl && e.key === 's'){ e.preventDefault(); downloadMarkdown(); return; }
+    if(ctrl && e.key === 'p'){ e.preventDefault(); exportPdf(); return; }
+    if(ctrl && e.shiftKey && (e.key === 'C' || e.key === 'c')){ e.preventDefault(); copyContent(); return; }
+    if(ctrl && (e.key === '=' || e.key === '+')){ e.preventDefault(); stepZoom(1); return; }
+    if(ctrl && e.key === '-'){ e.preventDefault(); stepZoom(-1); return; }
+    if(ctrl && e.key === '0'){ e.preventDefault(); resetZoom(); return; }
+  }
+
+  // === RTF CONVERTER ===
+  function decodeHtmlEntities(s){
+    const ta = document.createElement('textarea');
+    ta.innerHTML = s; return ta.value;
+  }
+  function getPlainTextFromNode(node){
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT, {
+      acceptNode(el){
+        if(el.nodeType === Node.ELEMENT_NODE){
+          const t = el.tagName.toLowerCase();
+          if(['script','style','noscript'].includes(t)) return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    let text = '', current;
+    while((current = walker.nextNode())){
+      if(current.nodeType === Node.TEXT_NODE) text += current.nodeValue;
+      else if(current.nodeType === Node.ELEMENT_NODE){
+        const t = current.tagName.toLowerCase();
+        if(t === 'br') text += '\n';
+        else if(['p','div','h1','h2','h3','h4','h5','h6','li','tr','pre'].includes(t)) text += '\n';
+      }
+    }
+    return text.replace(/\r\n/g,'\n').replace(/\n{3,}/g,'\n\n');
+  }
+
+  function convertToMarkdown(html){
+    if(!html) return '';
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    doc.querySelectorAll('script, style, noscript').forEach(el => el.remove());
+
+    function tableToMarkdown(tableEl){
+      const rows = [], trList = Array.from(tableEl.querySelectorAll('tr'));
+      if(trList.length === 0) return '';
+      let headerIdx = -1;
+      for(let r = 0; r < trList.length; r++){
+        if(trList[r].querySelectorAll('th').length > 0){ headerIdx = r; break; }
+      }
+      if(headerIdx === -1) headerIdx = 0;
+      const dataRows = [];
+      for(let r = 0; r < trList.length; r++){
+        const cells = Array.from(trList[r].querySelectorAll('th, td'));
+        if(cells.length === 0) continue;
+        const txt = cells.map(c => c.innerText.replace(/\r\n/g,'\n').replace(/\n{2,}/g,' ').trim().replace(/\|/g,'\\|'));
+        if(r === headerIdx){
+          rows.push('| ' + txt.join(' | ') + ' |');
+          rows.push('| ' + txt.map(() => '---').join(' | ') + ' |');
+        } else {
+          dataRows.push('| ' + txt.join(' | ') + ' |');
+        }
+      }
+      dataRows.forEach(x => rows.push(x));
+      return rows.join('\n');
+    }
+
+    function walk(node){
+      let md = '';
+      for(let i = 0; i < node.childNodes.length; i++){
+        const c = node.childNodes[i];
+        if(c.nodeType === Node.TEXT_NODE){
+          let t = decodeHtmlEntities(c.nodeValue);
+          t = t.replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\*/g,'\\*')
+               .replace(/_/g,'\\_').replace(/~/g,'\\~').replace(/\[/g,'\\[')
+               .replace(/\]/g,'\\]').replace(/#/g,'\\#').replace(/\|/g,'\\|');
+          md += t; continue;
+        }
+        if(c.nodeType !== Node.ELEMENT_NODE) continue;
+        const tag = c.tagName.toLowerCase();
+        switch(tag){
+          case 'h1': md += '\n# ' + walk(c).trim() + '\n\n'; break;
+          case 'h2': md += '\n## ' + walk(c).trim() + '\n\n'; break;
+          case 'h3': md += '\n### ' + walk(c).trim() + '\n\n'; break;
+          case 'h4': md += '\n#### ' + walk(c).trim() + '\n\n'; break;
+          case 'h5': md += '\n##### ' + walk(c).trim() + '\n\n'; break;
+          case 'h6': md += '\n###### ' + walk(c).trim() + '\n\n'; break;
+          case 'p': case 'div': {
+            const inner = walk(c).trim();
+            md += inner ? '\n' + inner + '\n\n' : '\n\n';
+            break;
+          }
+          case 'br': md += '\n'; break;
+          case 'strong': case 'b': md += '**' + walk(c).trim() + '**'; break;
+          case 'em': case 'i': md += '*' + walk(c).trim() + '*'; break;
+          case 'a': {
+            const href = c.getAttribute('href') || '';
+            md += '[' + (walk(c).trim() || href) + '](' + href + ')';
+            break;
+          }
+          case 'code': {
+            const isPre = c.parentElement && c.parentElement.tagName.toLowerCase() === 'pre';
+            md += isPre ? walk(c) : '`' + walk(c).trim() + '`';
+            break;
+          }
+          case 'pre': {
+            const ce = c.querySelector('code');
+            const cc = (ce ? ce.innerText : c.innerText).replace(/\r\n/g,'\n');
+            md += '\n```\n' + cc + '\n```\n\n';
+            break;
+          }
+          case 'ul': md += '\n' + walk(c) + '\n'; break;
+          case 'ol': {
+            let idx = 0;
+            for(let j = 0; j < c.childNodes.length; j++){
+              const li = c.childNodes[j];
+              if(li.nodeType === Node.ELEMENT_NODE && li.tagName.toLowerCase() === 'li'){
+                idx++;
+                md += '\n' + idx + '. ' + walk(li).trim();
+              }
+            }
+            md += '\n\n'; break;
+          }
+          case 'li': md += '\n- ' + walk(c).trim(); break;
+          case 'table': md += '\n' + tableToMarkdown(c) + '\n'; break;
+          case 'blockquote': {
+            const inner = walk(c).trim();
+            if(inner) md += '\n' + inner.split('\n').map(l => '> ' + l).join('\n') + '\n\n';
+            break;
+          }
+          case 'hr': md += '\n---\n\n'; break;
+          default: md += walk(c);
+        }
+      }
+      return md;
+    }
+
+    let result = walk(doc.body);
+    return result.replace(/\r\n/g,'\n').replace(/\n{3,}/g,'\n\n').replace(/[ \t]+\n/g,'\n').trim();
+  }
+
+  function updateRtfStats(){
+    const plain = getPlainTextFromNode(inputArea).trim();
+    const chars = plain.length;
+    const words = plain ? plain.split(/\s+/).filter(w => w.length > 0).length : 0;
+    rtfCharCount.textContent = `Caracteres: ${chars}`;
+    rtfWordCount.textContent = `Palavras: ${words}`;
+  }
+
+  const debouncedRtfUpdate = debounce(() => {
+    outputArea.classList.add('processing');
+    requestAnimationFrame(() => {
+      outputArea.value = convertToMarkdown(inputArea.innerHTML);
+      updateRtfStats();
+      outputArea.classList.remove('processing');
+    });
+  }, 200);
+
+  // === INIT ===
+  function init(){
+    initTheme();
+    initZoom();
+    loadFromStorage();
+    renderPreview();
+
+    // Restore mode
+    const savedMode = localStorage.getItem('md-suite-mode');
+    if(savedMode === 'converter') switchMode('converter');
+
+    editor.addEventListener('input', () => { debouncedRender(); saveToStorage(); });
+    editor.addEventListener('scroll', syncLineNumbersScroll);
+    editor.addEventListener('click', updateLineNumbers);
+    editor.addEventListener('keyup', updateLineNumbers);
+    editor.addEventListener('keydown', handleTabKey);
+
+    document.addEventListener('keydown', handleShortcuts);
+
+    btnTheme.addEventListener('click', toggleTheme);
+    btnCopy.addEventListener('click', copyContent);
+    btnDownload.addEventListener('click', downloadMarkdown);
+    btnPdf.addEventListener('click', exportPdf);
+    btnClear.addEventListener('click', clearContent);
+
+    zoomIn.addEventListener('click', () => stepZoom(1));
+    zoomOut.addEventListener('click', () => stepZoom(-1));
+    zoomReset.addEventListener('click', resetZoom);
+    zoomSlider.addEventListener('input', () => setZoom(parseInt(zoomSlider.value, 10)));
+
+    initResize();
+    initMobileTabs();
+
+    modeButtons.forEach(b => b.addEventListener('click', () => switchMode(b.dataset.mode)));
+
+    previewWrapper.addEventListener('wheel', (e) => {
+      if(e.ctrlKey || e.metaKey){ e.preventDefault(); stepZoom(e.deltaY < 0 ? 1 : -1); }
+    }, {passive:false});
+
+    // RTF events
+    inputArea.addEventListener('input', debouncedRtfUpdate);
+    inputArea.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const cb = e.clipboardData || window.clipboardData;
+      if(!cb){ document.execCommand('paste'); debouncedRtfUpdate(); return; }
+      const html = cb.getData('text/html');
+      const plain = cb.getData('text/plain');
+      if(html) document.execCommand('insertHTML', false, html);
+      else if(plain) document.execCommand('insertText', false, plain);
+      debouncedRtfUpdate();
+    });
+
+    window.addEventListener('beforeunload', saveToStorage);
+    editor.focus();
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+</body>
+</html>

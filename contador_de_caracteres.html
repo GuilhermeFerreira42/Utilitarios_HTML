@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TextMonitor - Contador Inteligente</title>
+	<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='50%' y='50%' style='font-size: 90px;' text-anchor='middle' dominant-baseline='middle'>🔤</text></svg>">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0f0f1a;
+            color: #f1f1f4;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* Fundo Animado */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: -50%;
+            background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.1), transparent 40%);
+            animation: bgMove 15s infinite alternate;
+            z-index: -1;
+        }
+
+        @keyframes bgMove {
+            from { transform: translate(-5%, -5%); }
+            to { transform: translate(5%, 5%); }
+        }
+
+        .widget-container {
+            width: 100%;
+            max-width: 760px;
+            background: rgba(22, 22, 35, 0.98);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        .widget-header {
+            padding: 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand h1 { font-size: 22px; font-weight: 700; color: #fff; }
+        .brand p { font-size: 13px; color: rgba(255, 255, 255, 0.4); }
+
+        .limit-config {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 15px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .limit-config label { font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, 0.3); }
+        .limit-config input {
+            background: transparent;
+            border: none;
+            color: #8b5cf6;
+            font-weight: 700;
+            width: 70px;
+            text-align: center;
+            outline: none;
+            font-size: 16px;
+        }
+
+        .progress-bar-container { height: 4px; background: rgba(255, 255, 255, 0.05); width: 100%; }
+        .progress-bar { 
+            height: 100%; 
+            width: 0%; 
+            background: #6366f1; 
+            transition: width 0.3s ease, background 0.3s ease; 
+        }
+
+        .stats { padding: 20px 30px; display: flex; justify-content: space-between; align-items: baseline; }
+        .counter-big { font-size: 32px; font-weight: 700; }
+        .counter-total { color: rgba(255, 255, 255, 0.2); font-size: 20px; }
+
+        /* EDITOR CORE - ONDE A MÁGICA ACONTECE */
+        .editor-section { padding: 0 30px 30px; }
+        .editor-wrapper {
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            height: 350px;
+            overflow: hidden;
+        }
+
+        /* Ambos devem ser idênticos em espaçamento e fonte */
+        #editor, #backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            overflow-y: scroll;
+            margin: 0;
+            border: none;
+        }
+
+        /* O Backdrop mostra o texto real */
+        #backdrop {
+            z-index: 1;
+            color: #e2e2e8; /* COR DO TEXTO EM BRANCO/CINZA */
+            pointer-events: none;
+            background: transparent;
+        }
+
+        /* O Textarea recebe o clique, mas o texto fica invisível (só cursor aparece) */
+        #editor {
+            z-index: 2;
+            color: transparent; 
+            background: transparent;
+            resize: none;
+            outline: none;
+            caret-color: #6366f1; /* Cor do cursor piscando */
+        }
+
+        /* Estilo do texto excedente */
+        .error-highlight {
+            color: #ef4444 !important;
+            background: rgba(239, 68, 68, 0.15);
+            text-decoration: underline wavy rgba(239, 68, 68, 0.3);
+        }
+
+        /* Scrollbar custom */
+        #editor::-webkit-scrollbar { width: 8px; }
+        #editor::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+        .actions { padding: 0 30px 30px; display: flex; gap: 10px; }
+        .btn {
+            padding: 12px 25px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-primary { background: #6366f1; color: #fff; }
+        .btn-ghost { background: rgba(255,255,255,0.05); color: #fff; }
+        .btn:hover { opacity: 0.8; transform: translateY(-1px); }
+
+        /* Estados de Alerta */
+        .text-danger { color: #ef4444 !important; }
+        .bg-danger { background: #ef4444 !important; }
+        .bg-warning { background: #f59e0b !important; }
+    </style>
+</head>
+<body>
+
+<div class="widget-container">
+    <div class="widget-header">
+        <div class="brand">
+            <h1>TextMonitor</h1>
+            <p>Seu assistente de escrita</p>
+        </div>
+        <div class="limit-config">
+            <label>LIMITE</label>
+            <input type="number" id="charLimit" value="2000" min="1">
+        </div>
+    </div>
+
+    <div class="progress-bar-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div class="stats">
+        <div>
+            <span class="counter-big" id="currentCount">0</span>
+            <span class="counter-total">/ <span id="limitDisplay">2000</span></span>
+        </div>
+        <div style="color: rgba(255,255,255,0.4); font-size: 14px; font-weight: 600;">
+            <span id="wordCount">0</span> PALAVRAS
+        </div>
+    </div>
+
+    <div class="editor-section">
+        <div class="editor-wrapper">
+            <div id="backdrop"></div>
+            <textarea id="editor" placeholder="Comece a digitar seu texto aqui..."></textarea>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn btn-primary" onclick="copyText()">Copiar Texto</button>
+        <button class="btn btn-ghost" onclick="clearText()">Limpar Tudo</button>
+    </div>
+</div>
+
+<script>
+    const editor = document.getElementById('editor');
+    const backdrop = document.getElementById('backdrop');
+    const charLimitInput = document.getElementById('charLimit');
+    const currentCount = document.getElementById('currentCount');
+    const limitDisplay = document.getElementById('limitDisplay');
+    const progressBar = document.getElementById('progressBar');
+    const wordCount = document.getElementById('wordCount');
+
+    function escapeHTML(str) {
+        return str.replace(/[&<>"']/g, m => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[m]);
+    }
+
+    function update() {
+        const text = editor.value;
+        const limit = parseInt(charLimitInput.value) || 0;
+        const len = text.length;
+
+        // Atualizar Displays
+        limitDisplay.textContent = limit;
+        currentCount.textContent = len;
+
+        // Lógica de Destaque (Coloração do Texto)
+        // Adicionamos um espaço no final se terminar em quebra de linha para manter o scroll sincronizado
+        const displayContent = text + (text.endsWith('\n') ? ' ' : '');
+
+        if (len > limit) {
+            const normalText = displayContent.substring(0, limit);
+            const errorText = displayContent.substring(limit);
+            backdrop.innerHTML = `<span>${escapeHTML(normalText)}</span><span class="error-highlight">${escapeHTML(errorText)}</span>`;
+            
+            progressBar.className = "progress-bar bg-danger";
+            currentCount.className = "counter-big text-danger";
+        } else {
+            backdrop.innerHTML = `<span>${escapeHTML(displayContent)}</span>`;
+            
+            const percent = (len / limit) * 100;
+            currentCount.className = "counter-big";
+            
+            if (percent > 90) progressBar.className = "progress-bar bg-danger";
+            else if (percent > 70) progressBar.className = "progress-bar bg-warning";
+            else progressBar.className = "progress-bar";
+        }
+
+        // Progresso e Palavras
+        const percent = Math.min((len / limit) * 100, 100);
+        progressBar.style.width = percent + '%';
+        
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        wordCount.textContent = words;
+
+        syncScroll();
+    }
+
+    function syncScroll() {
+        backdrop.scrollTop = editor.scrollTop;
+    }
+
+    function copyText() {
+        if (!editor.value) return;
+        navigator.clipboard.writeText(editor.value).then(() => {
+            alert("Texto copiado para a área de transferência!");
+        });
+    }
+
+    function clearText() {
+        if(confirm("Deseja realmente apagar tudo?")) {
+            editor.value = '';
+            update();
+        }
+    }
+
+    editor.addEventListener('input', update);
+    editor.addEventListener('scroll', syncScroll);
+    charLimitInput.addEventListener('input', update);
+
+    // Inicializa o contador
+    update();
+</script>
+
+</body>
+</html>

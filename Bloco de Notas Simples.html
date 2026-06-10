@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor Simples Donchpad - Full Screen</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='50%' y='50%' style='font-size: 90px;' text-anchor='middle' dominant-baseline='middle'>🌐</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        .dark body {
+            background-color: #111827;
+        }
+
+        /* Ajuste fino para a área de texto ocupar o máximo de espaço */
+        #textInput {
+            resize: none;
+            flex-grow: 1; /* Faz o textarea expandir no espaço disponível */
+        }
+
+        .custom-alert {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            transition: opacity 0.3s;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+</head>
+<body class="h-full bg-[#f7f7f9] text-gray-900 transition-colors duration-300 flex flex-col p-4 md:p-6">
+
+    <div class="fixed top-6 right-6 z-50">
+        <button id="toggleDarkMode" class="p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow-lg hover:scale-110 transition-transform active:scale-95">
+            <span id="themeIcon" class="text-xl">🌙</span>
+        </button>
+    </div>
+
+    <div class="flex flex-col flex-1 w-full bg-white dark:bg-gray-800 shadow-xl rounded-xl p-4 md:p-6 border border-gray-100 dark:border-gray-700 transition-colors duration-300 overflow-hidden">
+
+        <header class="mb-4">
+            <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">Bloco de Notas</h1>
+        </header>
+
+        <textarea
+            id="textInput"
+            placeholder="Comece a digitar seu texto aqui..."
+            class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-4 focus:ring-blue-500 focus:border-blue-500 text-lg text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900 placeholder-gray-400 dark:placeholder-gray-500"
+        ></textarea>
+
+        <div class="mt-4 space-y-4">
+            <div class="flex flex-col sm:flex-row items-center gap-4">
+                <div class="w-full sm:flex-1">
+                    <input 
+                        type="text" 
+                        id="filenameInput" 
+                        placeholder="Nome do arquivo (ex: notas_de_hoje)"
+                        class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base bg-white dark:bg-gray-900 dark:text-white transition-colors"
+                    >
+                </div>
+
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <button
+                        id="clearText"
+                        class="flex-1 sm:flex-none px-6 py-3 bg-red-500 text-white font-semibold rounded-lg shadow-md hover:bg-red-600 transition transform hover:scale-[1.02]"
+                    >
+                        Limpar
+                    </button>
+                    <button
+                        id="downloadTxtStandard"
+                        class="flex-1 sm:flex-none px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition transform hover:scale-[1.02]"
+                    >
+                        TXT
+                    </button>
+                    <button
+                        id="downloadDynamic"
+                        class="flex-1 sm:flex-none px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 transition transform hover:scale-[1.02]"
+                    >
+                        Download Personalizado
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const textInput = document.getElementById('textInput');
+        const filenameInput = document.getElementById('filenameInput');
+        const toggleDarkMode = document.getElementById('toggleDarkMode');
+        const themeIcon = document.getElementById('themeIcon');
+        const htmlElement = document.documentElement;
+        
+        // --- Lógica de Modo Noturno ---
+        function updateTheme(isDark) {
+            if (isDark) {
+                htmlElement.classList.add('dark');
+                themeIcon.textContent = '☀️';
+            } else {
+                htmlElement.classList.remove('dark');
+                themeIcon.textContent = '🌙';
+            }
+        }
+
+        toggleDarkMode.addEventListener('click', () => {
+            const isDark = !htmlElement.classList.contains('dark');
+            updateTheme(isDark);
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        });
+
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            updateTheme(true);
+        }
+
+        // --- Lógica de Arquivos ---
+        const mimeTypeMap = {
+            'txt': 'text/plain',
+            'md': 'text/markdown',
+            'html': 'text/html',
+            'js': 'application/javascript',
+            'json': 'application/json',
+            'css': 'text/css',
+            'default': 'text/plain' 
+        };
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename; 
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            customAlert(`Download de '${filename}' concluído!`);
+        }
+
+        function customAlert(message) {
+            const alertBox = document.createElement('div');
+            alertBox.textContent = message;
+            alertBox.className = 'custom-alert bg-purple-600 dark:bg-purple-500 text-white font-medium';
+            document.body.appendChild(alertBox);
+            setTimeout(() => {
+                alertBox.style.opacity = '0';
+                setTimeout(() => alertBox.remove(), 300);
+            }, 3000);
+        }
+
+        document.getElementById('clearText').addEventListener('click', () => {
+            if(confirm("Tem certeza que deseja limpar tudo?")) {
+                textInput.value = '';
+                filenameInput.value = ''; 
+                customAlert("Editor limpo!");
+            }
+        });
+
+        document.getElementById('downloadTxtStandard').addEventListener('click', () => {
+            const content = textInput.value;
+            if (!content.trim()) {
+                customAlert("O texto está vazio!");
+                return;
+            }
+            let filenameBase = filenameInput.value.trim().split('.')[0] || 'meu_documento';
+            downloadFile(content, filenameBase + '.txt', mimeTypeMap['txt']);
+        });
+
+        document.getElementById('downloadDynamic').addEventListener('click', () => {
+            const content = textInput.value;
+            if (!content.trim()) {
+                customAlert("O texto está vazio!");
+                return;
+            }
+            let filename = filenameInput.value.trim() || 'meu_documento.txt';
+            const parts = filename.split('.');
+            let mimeType = mimeTypeMap['default'];
+            if (parts.length > 1) {
+                const ext = parts.pop().toLowerCase();
+                mimeType = mimeTypeMap[ext] || 'application/octet-stream';
+            } else {
+                filename += '.txt';
+            }
+            downloadFile(content, filename, mimeType);
+        });
+    </script>
+</body>
+</html>

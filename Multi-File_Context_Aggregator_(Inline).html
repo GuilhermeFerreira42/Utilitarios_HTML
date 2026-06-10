@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Data Engine V7 - Universal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/128/3997/3997635.png">
+
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #00e676;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: #141414;
+            padding: 2.5rem;
+            border-radius: 15px;
+            box-shadow: 0 0 40px rgba(0,230,118,0.2);
+            width: 520px;
+            border: 1px solid #00e676;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin: 0;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(0,230,118,0.5);
+        }
+        .subtitle {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #555;
+            margin-top: -1rem;
+            letter-spacing: 1px;
+        }
+        .input-group { display: flex; flex-direction: column; gap: 0.5rem; }
+        label { font-size: 0.7rem; color: #888; text-transform: uppercase; font-weight: bold; }
+        input[type="text"], input[type="number"] {
+            background: #1f1f1f;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            width: 100%;
+        }
+        input[type="text"]:focus,
+        input[type="number"]:focus { border-color: #00e676; outline: none; }
+
+        .drop-zone {
+            border: 2px dashed #00e676;
+            background: #1f1f1f;
+            border-radius: 8px;
+            padding: 2.5rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .drop-zone.dragover {
+            border-color: #fff;
+            background: #002200;
+            box-shadow: 0 0 25px rgba(0,230,118,0.5);
+        }
+        .drop-zone p { margin: 0.4rem 0; color: #ccc; }
+        .drop-zone small { color: #666; font-size: 0.72rem; line-height: 1.6; }
+
+        /* Badge de formatos */
+        .format-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+            margin-top: 0.4rem;
+        }
+        .badge {
+            background: #1a3a1a;
+            border: 1px solid #00e676;
+            color: #00e676;
+            font-size: 0.6rem;
+            padding: 2px 7px;
+            border-radius: 20px;
+            font-family: monospace;
+            font-weight: bold;
+        }
+        .badge.pdf-badge {
+            background: #3a1a00;
+            border-color: #ff6b00;
+            color: #ff6b00;
+        }
+
+        /* Lista de arquivos carregados */
+        #fileList {
+            background: #000;
+            border: 1px solid #222;
+            border-radius: 6px;
+            max-height: 120px;
+            overflow-y: auto;
+            display: none;
+            font-family: monospace;
+            font-size: 0.7rem;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 10px;
+            border-bottom: 1px solid #111;
+            color: #aaa;
+        }
+        .file-item:last-child { border-bottom: none; }
+        .file-item .file-name { color: #00e676; }
+        .file-item .file-type {
+            font-size: 0.6rem;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: #1a3a1a;
+            color: #00e676;
+        }
+        .file-item .file-type.is-pdf {
+            background: #3a1a00;
+            color: #ff6b00;
+        }
+
+        button {
+            background: #00e676;
+            color: #000;
+            border: none;
+            padding: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 900;
+            font-size: 1rem;
+            text-transform: uppercase;
+            transition: 0.3s;
+        }
+        button:hover { background: #fff; box-shadow: 0 0 20px #00e676; }
+        button:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; }
+
+        .progress-bar-container {
+            background: #000;
+            border-radius: 4px;
+            border: 1px solid #222;
+            height: 6px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #00e676;
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+
+        /* Barra de progresso de leitura PDF */
+        .sub-progress {
+            background: #000;
+            border-radius: 4px;
+            border: 1px solid #1a1a1a;
+            height: 3px;
+            overflow: hidden;
+            display: none;
+        }
+        .sub-progress-bar {
+            height: 100%;
+            background: #ff6b00;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+
+        #status {
+            font-size: 0.8rem;
+            text-align: center;
+            background: #000;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #222;
+            font-family: monospace;
+            min-height: 38px;
+            word-break: break-all;
+            color: #00e676;
+        }
+
+        #wordCounter {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 14px;
+            text-align: center;
+        }
+        #wordCounter .val { font-size: 1.35rem; font-weight: bold; color: #00e676; }
+        #wordCounter .key { font-size: 0.65rem; color: #555; text-transform: uppercase; letter-spacing: 1px; }
+
+        .limit-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.5rem;
+        }
+        .stat-box {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+        }
+        .stat-box .val { font-size: 1.2rem; font-weight: bold; color: #00e676; }
+        .stat-box .key { font-size: 0.6rem; color: #555; text-transform: uppercase; }
+
+        #statGrid { display: none; }
+
+        /* Scrollbar customizada */
+        #fileList::-webkit-scrollbar { width: 4px; }
+        #fileList::-webkit-scrollbar-track { background: #000; }
+        #fileList::-webkit-scrollbar-thumb { background: #00e676; border-radius: 2px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>ENGINE V7_UNIVERSAL</h1>
+    <div class="subtitle">TEXTO + PDF → PDF COMPRIMIDO</div>
+
+    <div class="input-group">
+        <label>Nome do Arquivo de Saída:</label>
+        <input type="text" id="fileNameInput" placeholder="nexus_context_v7">
+    </div>
+
+    <div class="input-group">
+        <label>Arquivos para Agregação:</label>
+        <div id="dropZone" class="drop-zone">
+            <input type="file" id="fileInput" multiple style="display: none;">
+            <p>📂 ARRASTE E SOLTE OS ARQUIVOS AQUI</p>
+            <p style="font-size:0.85rem; opacity:0.8;">ou clique para selecionar</p>
+            <div class="format-badges">
+                <span class="badge">.txt</span>
+                <span class="badge">.md</span>
+                <span class="badge">.py</span>
+                <span class="badge">.js</span>
+                <span class="badge">.ts</span>
+                <span class="badge">.json</span>
+                <span class="badge">.html</span>
+                <span class="badge">.css</span>
+                <span class="badge">.xml</span>
+                <span class="badge">.csv</span>
+                <span class="badge">.yaml</span>
+                <span class="badge">.toml</span>
+                <span class="badge">.ini</span>
+                <span class="badge">.sh</span>
+                <span class="badge">.bat</span>
+                <span class="badge">.c</span>
+                <span class="badge">.cpp</span>
+                <span class="badge">.java</span>
+                <span class="badge">.rs</span>
+                <span class="badge">.go</span>
+                <span class="badge">.rb</span>
+                <span class="badge">.php</span>
+                <span class="badge">.sql</span>
+                <span class="badge">.log</span>
+                <span class="badge pdf-badge">.pdf</span>
+            </div>
+            <small style="display:block; margin-top:0.5rem;">
+                📄 PDFs terão o texto extraído automaticamente<br>
+                📝 Qualquer arquivo de texto é aceito
+            </small>
+        </div>
+
+        <!-- Lista de arquivos carregados -->
+        <div id="fileList"></div>
+    </div>
+
+    <div class="input-group">
+        <label>Contador de Palavras Totais:</label>
+        <div id="wordCounter">
+            <div class="val" id="wordVal">0</div>
+            <div class="key">PALAVRAS</div>
+        </div>
+    </div>
+
+    <div class="input-group">
+        <label class="limit-toggle">
+            <input type="checkbox" id="limitToggle" checked>
+            <span>Ativar limite de palavras por PDF</span>
+        </label>
+    </div>
+    <div class="input-group" id="maxWordsGroup">
+        <label>Máximo de palavras por PDF:</label>
+        <input type="number" id="maxWordsInput" value="500000" min="50000" step="10000">
+        <small style="color:#666;">
+            Se o total exceder, divide automaticamente em vários PDFs
+        </small>
+    </div>
+
+    <button id="compileBtn" onclick="processFiles()">
+        ▶ COMPILAR E GERAR PDF(s)
+    </button>
+
+    <div class="progress-bar-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="sub-progress" id="subProgressContainer">
+        <div class="sub-progress-bar" id="subProgressBar"></div>
+    </div>
+
+    <div id="status">SISTEMA_PRONTO</div>
+
+    <div class="stat-grid" id="statGrid">
+        <div class="stat-box">
+            <div class="val" id="statPages">—</div>
+            <div class="key">Páginas</div>
+        </div>
+        <div class="stat-box">
+            <div class="val" id="statLines">—</div>
+            <div class="key">Linhas</div>
+        </div>
+        <div class="stat-box">
+            <div class="val" id="statFont">—</div>
+            <div class="key">FontSize</div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────
+// CONFIGURAÇÃO PDF.JS (worker inline para evitar CORS)
+// ─────────────────────────────────────────────────────────────────
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ─────────────────────────────────────────────────────────────────
+// DETECÇÃO DE TIPO DE ARQUIVO
+// ─────────────────────────────────────────────────────────────────
+
+// Extensões de texto conhecidas — qualquer outra é tentada como texto genérico
+const TEXT_EXTENSIONS = new Set([
+    'txt','md','markdown','rst','text',
+    'py','pyw','js','mjs','ts','jsx','tsx',
+    'html','htm','xhtml','xml','svg',
+    'css','scss','sass','less',
+    'json','json5','jsonc','yaml','yml','toml','ini','cfg','conf','env',
+    'sh','bash','zsh','fish','bat','cmd','ps1',
+    'c','h','cpp','cc','cxx','hpp','cs','java','kt','kts',
+    'rs','go','rb','php','swift','scala','lua','r','m',
+    'sql','graphql','proto',
+    'csv','tsv','log','out','diff','patch',
+    'makefile','dockerfile','gitignore','editorconfig',
+    'tex','bib','vue','svelte','astro',
+]);
+
+function getExtension(filename) {
+    const parts = filename.toLowerCase().split('.');
+    return parts.length > 1 ? parts.pop() : '';
+}
+
+function isPDF(file) {
+    return getExtension(file.name) === 'pdf' ||
+           file.type === 'application/pdf';
+}
+
+function isLikelyText(file) {
+    const ext = getExtension(file.name);
+    if (TEXT_EXTENSIONS.has(ext)) return true;
+    // MIME type indica texto
+    if (file.type.startsWith('text/')) return true;
+    // Sem extensão ou extensão desconhecida → tenta como texto
+    return true;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// EXTRAÇÃO DE TEXTO DE PDF (via PDF.js)
+// ─────────────────────────────────────────────────────────────────
+async function extractTextFromPDF(file, onProgress) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const totalPages = pdf.numPages;
+    let fullText = '';
+
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const content = await page.getTextContent();
+
+        // Reconstrói linhas agrupando por posição Y
+        const items = content.items;
+        let lastY = null;
+        let pageText = '';
+
+        for (const item of items) {
+            if (!item.str) continue;
+            const y = item.transform ? item.transform[5] : 0;
+
+            if (lastY !== null && Math.abs(y - lastY) > 2) {
+                pageText += '\n';
+            }
+            pageText += item.str;
+            lastY = y;
+        }
+
+        fullText += pageText + '\n';
+
+        if (onProgress) onProgress(pageNum / totalPages);
+    }
+
+    return fullText;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// UTILITÁRIOS DE TEXTO
+// ─────────────────────────────────────────────────────────────────
+function hardWrapText(text, maxChars) {
+    const inputLines = text.split('\n');
+    const output = [];
+    for (const rawLine of inputLines) {
+        if (rawLine.length === 0) { output.push(''); continue; }
+        if (rawLine.length <= maxChars) { output.push(rawLine); continue; }
+        let pos = 0;
+        while (pos < rawLine.length) {
+            output.push(rawLine.slice(pos, pos + maxChars));
+            pos += maxChars;
+        }
+    }
+    return output;
+}
+
+function sanitizeText(text) {
+    return text
+        .replace(/├──/g, '|--').replace(/└──/g, '`--')
+        .replace(/┌──/g, '.--').replace(/─/g, '-')
+        .replace(/│/g, '|').replace(/┐/g, '.').replace(/┘/g, "'")
+        .replace(/┴/g, '+').replace(/┬/g, '+').replace(/┼/g, '+')
+        .replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"')
+        .replace(/\u2014/g, '--').replace(/\u2013/g, '-')
+        .replace(/\u2026/g, '...').replace(/[\r]/g, '')
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '?')
+        .replace(/\t/g, '    ');
+}
+
+function sanitizeFileName(name) {
+    return name
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+        .replace(/\s+/g, '_').trim() || 'nexus_v7_output';
+}
+
+function calcMaxCharsPerLine(colWidth_mm, fontSize_pt) {
+    const charWidth_mm = fontSize_pt * 0.3527 * 0.6;
+    return Math.floor(colWidth_mm / charWidth_mm);
+}
+
+function splitIntoChunks(text, maxWords) {
+    const lines = text.split('\n');
+    const chunks = [];
+    let currentLines = [];
+    let currentWords = 0;
+
+    for (const line of lines) {
+        const lineWords = (line.match(/\S+/g) || []).length;
+        if (currentWords + lineWords > maxWords && currentLines.length > 0) {
+            chunks.push(currentLines.join('\n'));
+            currentLines = [];
+            currentWords = 0;
+        }
+        currentLines.push(line);
+        currentWords += lineWords;
+    }
+    if (currentLines.length > 0) chunks.push(currentLines.join('\n'));
+    return chunks;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// UI HELPERS
+// ─────────────────────────────────────────────────────────────────
+function setStatus(msg) {
+    document.getElementById('status').innerText = msg;
+}
+function setProgress(pct) {
+    document.getElementById('progressContainer').style.display = 'block';
+    document.getElementById('progressBar').style.width = Math.min(100, pct) + '%';
+}
+function setSubProgress(pct) {
+    const c = document.getElementById('subProgressContainer');
+    const b = document.getElementById('subProgressBar');
+    c.style.display = 'block';
+    b.style.width = Math.min(100, pct * 100) + '%';
+}
+function hideSubProgress() {
+    document.getElementById('subProgressContainer').style.display = 'none';
+}
+function showStats(pages, lines, font) {
+    document.getElementById('statGrid').style.display = 'grid';
+    document.getElementById('statPages').innerText = pages;
+    document.getElementById('statLines').innerText = lines.toLocaleString('pt-BR');
+    document.getElementById('statFont').innerText = font.toFixed(1) + 'pt';
+}
+function yieldToUI() {
+    return new Promise(resolve => setTimeout(resolve, 0));
+}
+
+function renderFileList(files) {
+    const listEl = document.getElementById('fileList');
+    if (!files || files.length === 0) {
+        listEl.style.display = 'none';
+        listEl.innerHTML = '';
+        return;
+    }
+    listEl.style.display = 'block';
+    listEl.innerHTML = Array.from(files).map(f => {
+        const ext = getExtension(f.name) || 'txt';
+        const pdf = isPDF(f);
+        const size = f.size > 1024 * 1024
+            ? (f.size / 1024 / 1024).toFixed(1) + ' MB'
+            : (f.size / 1024).toFixed(0) + ' KB';
+        return `
+            <div class="file-item">
+                <span class="file-name">${f.name}</span>
+                <span style="color:#555; font-size:0.65rem;">${size}</span>
+                <span class="file-type ${pdf ? 'is-pdf' : ''}">
+                    ${pdf ? '📄 PDF' : ('.' + ext)}
+                </span>
+            </div>`;
+    }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ENGINE PRINCIPAL
+// ─────────────────────────────────────────────────────────────────
+async function processFiles() {
+    const fileInput   = document.getElementById('fileInput');
+    const nameInput   = document.getElementById('fileNameInput');
+    const btn         = document.getElementById('compileBtn');
+    const limitToggle = document.getElementById('limitToggle');
+    const maxWordsInput = document.getElementById('maxWordsInput');
+
+    if (!fileInput.files || fileInput.files.length === 0) {
+        setStatus('ERRO: NENHUM_ARQUIVO_SELECIONADO');
+        return;
+    }
+
+    btn.disabled = true;
+    setProgress(0);
+    hideSubProgress();
+
+    // ── FASE 1: LEITURA ──────────────────────────────────────────
+    const totalFiles = fileInput.files.length;
+    let rawContent = '';
+    let pdfCount = 0;
+
+    for (let i = 0; i < totalFiles; i++) {
+        const file = fileInput.files[i];
+        const separator = `\n${'='.repeat(60)}\n### [${String(i+1).padStart(3,'0')}] ${file.name} ###\n${'='.repeat(60)}\n`;
+
+        if (isPDF(file)) {
+            // ── Extração de PDF ──────────────────────────────────
+            pdfCount++;
+            setStatus(`EXTRAINDO_PDF [${i+1}/${totalFiles}]: ${file.name}`);
+            setSubProgress(0);
+            await yieldToUI();
+
+            try {
+                const pdfText = await extractTextFromPDF(file, (prog) => {
+                    setSubProgress(prog);
+                });
+                const cleanText = sanitizeText(pdfText);
+                rawContent += separator + `[FONTE: PDF — ${file.name}]\n` + cleanText + '\n';
+            } catch (err) {
+                rawContent += separator + `[ERRO_AO_EXTRAIR_PDF: ${err.message}]\n`;
+                setStatus(`AVISO: Falha ao extrair ${file.name} — ${err.message}`);
+                await yieldToUI();
+            }
+            hideSubProgress();
+
+        } else {
+            // ── Leitura de texto ─────────────────────────────────
+            setStatus(`LENDO [${i+1}/${totalFiles}]: ${file.name}`);
+            await yieldToUI();
+            try {
+                const text = await file.text();
+                const cleanText = sanitizeText(text);
+                rawContent += separator + cleanText + '\n';
+            } catch (err) {
+                // Tentativa binária → UTF-8
+                try {
+                    const buf = await file.arrayBuffer();
+                    const text = new TextDecoder('utf-8', { fatal: false }).decode(buf);
+                    rawContent += separator + sanitizeText(text) + '\n';
+                } catch (e2) {
+                    rawContent += separator + `[ERRO_LEITURA: ${e2.message}]\n`;
+                }
+            }
+        }
+
+        setProgress((i + 1) / totalFiles * 30);
+    }
+
+    // ── FASE 2: CHUNKING ─────────────────────────────────────────
+    const totalWords = (rawContent.match(/\S+/g) || []).length;
+    const limitEnabled = limitToggle.checked;
+    const maxWordsPerFile = limitEnabled ? (parseInt(maxWordsInput.value) || 500000) : Infinity;
+
+    let chunks = [rawContent];
+    if (limitEnabled && totalWords > maxWordsPerFile) {
+        setStatus(`DIVIDINDO... ${totalWords.toLocaleString('pt-BR')} palavras → ${Math.ceil(totalWords / maxWordsPerFile)} PDFs`);
+        await yieldToUI();
+        chunks = splitIntoChunks(rawContent, maxWordsPerFile);
+    }
+
+    const numChunks = chunks.length;
+    setProgress(35);
+
+    // ── FASE 3: RENDERIZAÇÃO ─────────────────────────────────────
+    const MAX_PAGES  = 89;
+    const COLUMNS    = 3;
+    const MARGIN     = 8;
+    const GUTTER     = 6;
+    const PAGE_W     = 210;
+    const PAGE_H     = 297;
+    const LINE_FACTOR = 1.25;
+    const colWidth   = (PAGE_W - (2 * MARGIN) - ((COLUMNS - 1) * GUTTER)) / COLUMNS;
+    const usableH    = PAGE_H - (2 * MARGIN);
+    const { jsPDF }  = window.jspdf;
+
+    const baseFileName = sanitizeFileName(
+        nameInput.value.trim().replace(/\.pdf$/i, '')
+    ) || 'nexus_v7_output';
+
+    let totalFinalPages = 0;
+    let lastFontSize    = 8.5;
+    let lastLinesCount  = 0;
+
+    for (let idx = 0; idx < numChunks; idx++) {
+        const chunkContent = chunks[idx];
+        const chunkLabel   = `${String(idx+1).padStart(3,'0')}/${numChunks}`;
+
+        setStatus(`CHUNK ${chunkLabel} → CALCULANDO_LAYOUT...`);
+        await yieldToUI();
+
+        // ── Auto-ajuste de tamanho de fonte ──────────────────────
+        let fontSize = 8.5;
+        let lines = [], lineH_mm = 0, linesPerCol = 0, totalPages = 0;
+
+        while (fontSize >= 2.0) {
+            const maxChars = calcMaxCharsPerLine(colWidth, fontSize);
+            lines        = hardWrapText(chunkContent, maxChars);
+            lineH_mm     = (fontSize * 0.3527) * LINE_FACTOR;
+            linesPerCol  = Math.floor(usableH / lineH_mm);
+            totalPages   = Math.ceil(lines.length / (linesPerCol * COLUMNS));
+            if (totalPages <= MAX_PAGES) break;
+            fontSize -= 0.3;
+        }
+        if (totalPages > MAX_PAGES) totalPages = MAX_PAGES;
+
+        lastFontSize    = fontSize;
+        lastLinesCount  = lines.length;
+        totalFinalPages += totalPages;
+
+        // ── Render ────────────────────────────────────────────────
+        setStatus(`CHUNK ${chunkLabel} → RENDERIZANDO ${totalPages}P (fonte: ${fontSize.toFixed(1)}pt)...`);
+        await yieldToUI();
+
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        doc.setFont('courier', 'normal');
+        doc.setFontSize(fontSize);
+
+        const firstLineOffset = fontSize * 0.3527;
+        let currentLine = 0;
+        const pagesToRender = Math.min(totalPages, MAX_PAGES);
+
+        for (let p = 0; p < pagesToRender; p++) {
+            if (currentLine >= lines.length) break;
+            if (p > 0) doc.addPage();
+
+            for (let c = 0; c < COLUMNS; c++) {
+                const startX = MARGIN + (c * (colWidth + GUTTER));
+                let curY = MARGIN + firstLineOffset;
+
+                for (let l = 0; l < linesPerCol; l++) {
+                    if (currentLine >= lines.length) break;
+                    const lineText = lines[currentLine];
+                    if (lineText.length > 0) doc.text(lineText, startX, curY);
+                    curY += lineH_mm;
+                    currentLine++;
+                }
+            }
+
+            if (p % 10 === 0) {
+                const chunkProg = (idx + p / pagesToRender) / numChunks;
+                setProgress(35 + chunkProg * 60);
+                await yieldToUI();
+            }
+        }
+
+        // ── Salvar ────────────────────────────────────────────────
+        setStatus(`CHUNK ${chunkLabel} → SALVANDO...`);
+        await yieldToUI();
+        const suffix   = numChunks > 1 ? `_${String(idx+1).padStart(3,'0')}` : '';
+        doc.save(baseFileName + suffix + '.pdf');
+
+        setProgress(35 + ((idx + 1) / numChunks) * 65);
+    }
+
+    // ── CONCLUÍDO ─────────────────────────────────────────────────
+    setProgress(100);
+    const pdfNote = pdfCount > 0 ? ` | ${pdfCount} PDF(s) extraído(s)` : '';
+    setStatus(`✓ SUCESSO | ${numChunks} PDF(s) gerados | ${totalFinalPages} páginas${pdfNote}`);
+    showStats(totalFinalPages, lastLinesCount, lastFontSize);
+    btn.disabled = false;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DRAG & DROP + CONTADOR DE PALAVRAS
+// ─────────────────────────────────────────────────────────────────
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+async function updateWordCount() {
+    const files = fileInput.files;
+    renderFileList(files);
+
+    if (!files || files.length === 0) {
+        document.getElementById('wordVal').innerText = '0';
+        setStatus('SISTEMA_PRONTO');
+        return;
+    }
+
+    setStatus('ANALISANDO_ARQUIVOS...');
+
+    // Conta palavras apenas dos arquivos de texto (PDFs: estimativa por tamanho)
+    let totalWords = 0;
+    const promises = Array.from(files).map(async (file) => {
+        try {
+            if (isPDF(file)) {
+                // Estimativa: ~250 palavras por KB de PDF (heurística)
+                return Math.round(file.size / 1024 * 2.5);
+            }
+            const text = await file.text();
+            return (text.match(/\S+/g) || []).length;
+        } catch { return 0; }
+    });
+
+    const results = await Promise.all(promises);
+    totalWords = results.reduce((a, b) => a + b, 0);
+
+    document.getElementById('wordVal').innerText = totalWords.toLocaleString('pt-BR');
+
+    const pdfFiles = Array.from(files).filter(isPDF).length;
+    const txtFiles = files.length - pdfFiles;
+    const parts = [];
+    if (txtFiles > 0) parts.push(`${txtFiles} texto`);
+    if (pdfFiles > 0) parts.push(`${pdfFiles} PDF`);
+    setStatus(`PRONTO | ${parts.join(' + ')} | ~${totalWords.toLocaleString('pt-BR')} palavras`);
+}
+
+// Drag & Drop — aceita QUALQUER arquivo
+dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+});
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+        const dt = new DataTransfer();
+        droppedFiles.forEach(f => dt.items.add(f));
+        fileInput.files = dt.files;
+        updateWordCount();
+    }
+});
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', updateWordCount);
+
+// ─────────────────────────────────────────────────────────────────
+// CONTROLE DE LIMITE
+// ─────────────────────────────────────────────────────────────────
+const limitToggle  = document.getElementById('limitToggle');
+const maxWordsGroup = document.getElementById('maxWordsGroup');
+
+function updateLimitUI() {
+    maxWordsGroup.style.display = limitToggle.checked ? 'flex' : 'none';
+}
+limitToggle.addEventListener('change', updateLimitUI);
+updateLimitUI();
+</script>
+</body>
+</html>
