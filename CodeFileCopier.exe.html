@@ -770,6 +770,7 @@ function switchTab(id){
   });
   document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
   $id(`tab-${id}`).classList.add('active');
+  if(id==='explorer') refreshTreeVisuals();
 }
 
 // ============================================================
@@ -1066,6 +1067,39 @@ function deselAllSearch(){S.searchResults.forEach(rp=>S.selectedFiles.delete(rp)
 // ============================================================
 // TREE EXPLORER
 // ============================================================
+function setTreeFileVisual(el, selected){
+  el.classList.toggle('checked', selected);
+  const ic=el.querySelector('.tree-icon');
+  if(ic) ic.textContent=selected?'☑':'☐';
+}
+function setTreeDirVisual(el, selectedCount, totalCount){
+  const full=totalCount>0 && selectedCount===totalCount;
+  const partial=selectedCount>0 && selectedCount<totalCount;
+  el.classList.toggle('checked', full);
+  el.classList.toggle('partial', partial);
+  const ic=el.querySelector('.tree-icon');
+  if(ic) ic.textContent=selectedCount===0?'☐':full?'☑':'⊟';
+}
+function refreshTreeVisuals(rootEl=$id('tree-wrap')){
+  if(!rootEl) return;
+
+  // 1) Sincroniza todos os arquivos renderizados com S.selectedFiles.
+  rootEl.querySelectorAll('.tree-item[data-rp]').forEach(el=>{
+    setTreeFileVisual(el,S.selectedFiles.has(el.dataset.rp));
+  });
+
+  // 2) Sincroniza todas as pastas/subpastas com base nos arquivos descendentes.
+  //    Isso garante que, ao marcar uma pasta, todas as subpastas apareçam marcadas também.
+  [...rootEl.querySelectorAll('.tree-node')].reverse().forEach(nodeEl=>{
+    const item=nodeEl.children[0];
+    const childDiv=nodeEl.children[1];
+    if(!item||!childDiv) return;
+    const fileEls=[...childDiv.querySelectorAll('.tree-item[data-rp]')];
+    const total=fileEls.length;
+    const selected=fileEls.filter(el=>S.selectedFiles.has(el.dataset.rp)).length;
+    setTreeDirVisual(item,selected,total);
+  });
+}
 function buildTree(){
   const root={name:'',ch:{},files:[]};
   S.allMeta.forEach(m=>{
@@ -1131,22 +1165,14 @@ function renderTreeNode(node,container){
     item.onclick=ev=>{
       if(ev.target===tog) return;
       const nowSelC=allF.filter(m=>S.selectedFiles.has(m.relPath)).length;
-      const allSel=nowSelC===allF.length;
+      const allSel=allF.length>0 && nowSelC===allF.length;
       allF.forEach(m=>allSel
           ?S.selectedFiles.delete(m.relPath)
           :S.selectedFiles.add(m.relPath)
       );
       log(`Pasta ${allSel?'desmarcada':'marcada'}: ${dk}`);
-      updateDirVisual();
-      // Atualiza ícones dos filhos visíveis sem reconstruir
-      childDiv.querySelectorAll('.tree-item').forEach(el=>{
-        const rp=el.dataset.rp;
-        if(!rp) return;
-        const sel=S.selectedFiles.has(rp);
-        el.classList.toggle('checked',sel);
-        const ic=el.querySelector('.tree-icon');
-        if(ic) ic.textContent=sel?'☑':'☐';
-      });
+      // Sincroniza a pasta clicada, todas as subpastas e todos os arquivos descendentes.
+      refreshTreeVisuals();
       updateCounter();
     };
 
@@ -1168,10 +1194,8 @@ function renderTreeNode(node,container){
       const isNowSel=S.selectedFiles.has(m.relPath);
       if(isNowSel){S.selectedFiles.delete(m.relPath);}
       else{S.selectedFiles.add(m.relPath);}
-      const nowSel=!isNowSel;
-      d.classList.toggle('checked',nowSel);
-      d.querySelector('.tree-icon').textContent=nowSel?'☑':'☐';
-      // ← Sem buildTree() aqui. Só atualiza este elemento.
+      // Sem buildTree() aqui. Apenas sincroniza o item e os pais/subpastas afetados.
+      refreshTreeVisuals();
       updateCounter();
     };
     container.appendChild(d);
@@ -1478,5 +1502,5 @@ log('Bem-vindo ao Copiador de Código v2.0 — HTML Edition.','info');
 log('Selecione uma pasta de entrada para começar.','info');
 updateCounter();
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0c3fa650bcfc131',t:'MTc4MTU1MTcwOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
